@@ -1,14 +1,16 @@
 <?php
 // VULNERABLE: Path Traversal via lang parameter
-$lang = $_GET['lang'] ?? 'es.php';
+$allowed_langs = ['es', 'en', 'php'];
+$lang = $_GET['lang'] ?? 'es'; 
+
 
 require_once __DIR__ . '/db.php';
 
 // Guardar mensaje de tripulación (VULNERABLE: sin sanitización - XSS stored)
 $msg_success = "";
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['author'], $_POST['message'])) {
-    $author = $_POST['author'];   // SIN sanitizar - vulnerable a XSS stored
-    $message = $_POST['message']; // SIN sanitizar - vulnerable a XSS stored
+    $author  = filter_var($_POST['author'] ?? '', FILTER_SANITIZE_FULL_SPECIAL_CHARS);//SOLUCION: sanitizar las variables
+    $message = filter_var($_POST['message'] ?? '', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
 
     // HARDENING: Bloquear 'alert' para forzar ataques más complejos
     if (stripos($message, 'alert') !== false || stripos($message, 'location') !== false) {
@@ -85,9 +87,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['author'], $_POST['mes
             <div class="content-box">
                 <h2>Información de la Nave</h2>
                 <?php
-                // VULNERABLE: Direct file inclusion - no path sanitization
-                // Student can use: ?lang=../../../../flag.txt
-                include("lang/" . $lang);
+                // SOLUCION: filtrar los lenguajes que se pueden escribir
+                if (in_array($lang, $allowed_langs, true)) {
+    		        include($lang . '.php');
+                } else {
+    		        include('es.php'); 
+                }
                 ?>
             </div>
 

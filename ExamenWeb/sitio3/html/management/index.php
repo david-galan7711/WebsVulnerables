@@ -24,17 +24,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['sys_file'])) {
     $filename = $file['name'];
     $tmp_name = $file['tmp_name'];
 
-    // VULNERABILIDAD: Validación débil de extensión
-    // Solo comprueba si contiene ".jpg", permitiendo "shell.php.jpg" o similar.
-    if (strpos($filename, '.jpg') !== false) {
-        if (move_uploaded_file($tmp_name, $upload_dir . $filename)) {
-            $msg = "Archivo de sistema subido correctamente: " . htmlspecialchars($filename);
-        } else {
-            $error = "Error al mover el archivo al repositorio de sistemas.";
+    // --- INICIO DEL CÓDIGO SEGURO (Estilo DVWA Impossible) ---
+
+    // 1. Obtener la extensión real (en minúsculas)
+    $uploaded_ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+    // 2. Generar un nombre de archivo aleatorio y seguro (Evita Path Traversal y XSS)
+    $nuevo_nombre = md5(uniqid() . $filename) . '.' . $uploaded_ext;
+    $target_path = $upload_dir . $nuevo_nombre;
+
+    // 3. Validaciones estrictas: Extensión, Tamaño y Contenido Real
+    // Nota: He puesto un límite de 2MB, ajústalo según necesites.
+    if ( ($uploaded_ext == 'jpg' || $uploaded_ext == 'jpeg' || $uploaded_ext == 'png') &&
+         ($file['size'] < 2000000) && 
+         (getimagesize($tmp_name) !== false) ) {
+
+        // 4. Re-encodeo de la imagen (Strip Metadata / Destruye código malicioso)
+        $tipo_mime = mime_content_type($tmp_name);
+        
+        if ($tipo_mime == 'image/jpeg') {
+            $img = imagecreatefromjpeg($tmp_name);
+            imagejpeg($img, $target_path . '.tmp', 100); 
+        } elseif ($tipo_mime == 'image/png') {
+            $img = imagecreatefrompng($tmp_name);
+            imagepng($img, $target_path . '.tmp', 9);
         }
+
+        if (isset($img)) {
+            imagedestroy($img);
+
+            // 5. Mover el archivo limpio a su destino final
+            if (rename($target_path . '.tmp', $target_path)) {
+                $msg = "Archivo de sistema subido correctamente: " . htmlspecialchars($nuevo_nombre);
+            } else {
+                $error = "Error al mover el archivo al repositorio de sistemas.";
+            }
+        } else {
+            $error = "Error al procesar la imagen.";
+        }
+
+        // Limpieza de archivos temporales
+        if (file_exists($target_path . '.tmp')) {
+            unlink($target_path . '.tmp');
+        }
+
     } else {
-        $error = "Formato no válido. El sistema solo acepta esquemas visuales (.jpg).";
+        $error = "Formato no válido. El sistema solo acepta esquemas visuales reales (.jpg, .jpeg, .png).";
     }
+    // --- FIN DEL CÓDIGO SEGURO ---
 }
 ?>
 <!DOCTYPE html>
