@@ -91,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['author'], $_POST['mes
                 if (in_array($lang, $allowed_langs, true)) {
     		        include($lang . '.php');
                 } else {
-    		        include('es.php'); 
+    		        include('lang/es.php'); 
                 }
                 ?>
             </div>
