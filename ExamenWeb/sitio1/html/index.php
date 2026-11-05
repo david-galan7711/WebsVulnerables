@@ -1,35 +1,58 @@
 <?php
 session_name("StarWarsCookie");
+ini_set('session.use_strict_mode', '1');
+
+$secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path'     => '/',
+    'domain'   => '',
+    'secure'   => $secure,
+    'httponly' => true,
+    'samesite' => 'Lax',
+]);
 session_start();
 
-// If already logged in, redirect to dashboard
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
     header("Location: dashboard.php");
     exit();
 }
 
-// Database connection
 require_once __DIR__ . '/db.php';
 
 $error = "";
 
-// Handle login
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $user = $_POST['user'] ?? '';
+    $user = trim($_POST['user'] ?? '');
     $pass = $_POST['pass'] ?? '';
 
-    // VULNERABLE: SQL Injection - No prepared statements, no sanitization
-    $query = "SELECT * FROM users WHERE user='$user' AND pass='$pass'";
-    $result = $conn->query($query);
-
-    if ($result && $result->num_rows > 0) {
-        $row = $result->fetch_assoc();
-        $_SESSION['logged_in'] = true;
-        $_SESSION['username'] = $row['user'];
-        header("Location: dashboard.php");
-        exit();
-    } else {
+    if ($user === '' || $pass === '') {
         $error = "ACCESO DENEGADO - Credenciales Imperiales no válidas";
+    } else {
+        // ✅ Consulta preparada: la inyección SQL ya no es posible
+        $stmt = $conn->prepare("SELECT user, pass FROM users WHERE user = ? LIMIT 1");
+        $stmt->bind_param("s", $user);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        $valid = false;
+        if ($row) {
+            $stored = (string)$row['pass'];
+            // password_verify para hashes bcrypt/argon2; hash_equals como fallback
+            // si aún tienes contraseñas en texto plano (migra cuanto antes)
+            $valid = password_verify($pass, $stored) || hash_equals($stored, $pass);
+        }
+
+        if ($valid) {
+            session_regenerate_id(true); // evita session fixation
+            $_SESSION['logged_in'] = true;
+            $_SESSION['username']  = $row['user'];
+            header("Location: dashboard.php");
+            exit();
+        } else {
+            $error = "ACCESO DENEGADO - Credenciales Imperiales no válidas";
+        }
     }
 }
 ?>
