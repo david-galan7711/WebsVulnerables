@@ -1,1 +1,5 @@
-AddHandler application/x-httpd-php .php
+# Directorio de subidas: nunca debe ejecutar código.
+# Se elimina el AddHandler de PHP que permitía ejecutar shell.php.jpg.
+
+RemoveHandler .php .php3 .php4 .php5 .php7 .php8 .phtml .phar .phps
+RemoveType .php .php3 .php4 .php5 .php7 .php8 .phtml .phar .phps

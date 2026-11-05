@@ -1,9 +1,9 @@
 <?php
 // Muro de Mordor - Tablón de mensajes Orco
-// VULNERABLE: Stored XSS with weak script filter
+// SECURE: todo el contenido de usuario se codifica al mostrarse (htmlspecialchars)
 
-session_name("lotrCookie");
-session_start();
+require_once __DIR__ . '/../session.php';
+mordor_boot();
 require_once __DIR__ . '/../db.php';
 
 $is_admin = (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true && isset($_SESSION['role']) && $_SESSION['role'] === 'admin');
@@ -51,11 +51,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message']) && !isset(
     $author = $_POST['author'] ?? 'Orco Anónimo';
     $message = $_POST['message'] ?? '';
 
-    // VULNERABLE: Weak filter - only blocks <script> tag
+    // Filtro disuasorio. La protección real es la codificación de salida al mostrar.
     if (preg_match("/<script/i", $message)) {
         $error = "¡El Ojo de Sauron bloquea tu magia oscura! ¡No se permiten scripts!";
     } else {
-        // Store without sanitization
+        // Se guarda el texto tal cual; se escapa sólo al renderizar.
         $stmt = $conn->prepare("INSERT INTO orc_messages (author, message) VALUES (?, ?)");
         $stmt->bind_param("ss", $author, $message);
         $stmt->execute();
@@ -258,12 +258,12 @@ $messages = $conn->query("SELECT * FROM orc_messages ORDER BY created_at DESC");
                                 </form>
                             <?php endif; ?>
 
-                            <div class="author"><?php echo $msg['author']; ?></div>
+                            <div class="author"><?php echo htmlspecialchars($msg['author'], ENT_QUOTES, 'UTF-8'); ?></div>
 
-                            <!-- XSS VULNERABILITY HERE: Message is printed without htmlspecialchars() -->
-                            <div class="text"><?php echo $msg['message']; ?></div>
+                            <!-- Salida codificada: el contenido del usuario nunca se interpreta como HTML/JS -->
+                            <div class="text"><?php echo htmlspecialchars($msg['message'], ENT_QUOTES, 'UTF-8'); ?></div>
 
-                            <div class="time"><?php echo $msg['created_at']; ?></div>
+                            <div class="time"><?php echo htmlspecialchars($msg['created_at'], ENT_QUOTES, 'UTF-8'); ?></div>
                         </div>
                     <?php endwhile; ?>
                 </div>

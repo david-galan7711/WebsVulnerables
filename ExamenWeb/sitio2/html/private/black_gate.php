@@ -1,6 +1,6 @@
 <?php
-session_name("lotrCookie");
-session_start();
+require_once __DIR__ . '/../session.php';
+mordor_boot();
 
 // Check admin session
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {

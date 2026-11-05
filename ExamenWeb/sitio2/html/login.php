@@ -1,10 +1,10 @@
 <?php
 // Login de Mordor - Portal de Sauron
-// Sesiones PHP reales (sin httpOnly para permitir robo de cookie vía XSS)
+// Sesiones PHP reales con cookies endurecidas contra robo vía XSS
 
-ini_set('session.cookie_httponly', 0);
-session_name("lotrCookie");
-session_start();
+require_once __DIR__ . '/session.php';
+
+mordor_boot();
 
 // Si ya está logueado, redirigir
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
@@ -28,10 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($result->num_rows > 0) {
             $user = $result->fetch_assoc();
-            session_regenerate_id(true);
-            $_SESSION['logged_in'] = true;
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['role'] = $user['role'];
+            mordor_login($user);
             header("Location: private/");
             exit();
         } else {

@@ -1,7 +1,7 @@
 <?php
 // Panel de admin landing - Sesión real
-session_name("lotrCookie");
-session_start();
+require_once __DIR__ . '/../session.php';
+mordor_boot();
 
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     http_response_code(403);

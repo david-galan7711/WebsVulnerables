@@ -1,26 +1,8 @@
 <?php
-session_name("lotrCookie");
-session_start();
+require_once __DIR__ . '/session.php';
 
-// Clear session data
-$_SESSION = array();
-
-// Delete the session cookie from browser
-if (ini_get("session.use_cookies")) {
-    $params = session_get_cookie_params();
-    setcookie(
-        session_name(),
-        '',
-        time() - 42000,
-        $params["path"],
-        $params["domain"],
-        $params["secure"],
-        $params["httponly"]
-    );
-}
-
-// Destroy session on server
-session_destroy();
+mordor_start_session();
+mordor_destroy_session();
 
 header("Location: ./");
 exit();

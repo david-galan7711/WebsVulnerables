@@ -1,9 +1,9 @@
 <?php
 // Panel de admin - Subida de ficheros con autenticación por sesión
-// VULNERABLE: Filtro de extensión débil (solo comprueba la última extensión)
+// SECURE: valida contenido real de imagen y renombra el fichero con nombre aleatorio .jpg
 
-session_name("lotrCookie");
-session_start();
+require_once __DIR__ . '/../session.php';
+mordor_boot();
 
 // Comprobar sesión
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
@@ -48,20 +48,40 @@ $success = "";
 
 // Handle file upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['map'])) {
-    $filename = $_FILES['map']['name'];
-    $tmp = $_FILES['map']['tmp_name'];
+    $file = $_FILES['map'];
     $upload_dir = __DIR__ . '/uploads/';
+    $max_size = 5 * 1024 * 1024; // 5 MB
 
-    // VULNERABLE: Only checks the LAST extension
-    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-
-    if ($ext !== 'jpg' && $ext !== 'jpeg') {
-        $error = "¡Solo se permiten imágenes de mapas (.jpg)! ¡El Señor Oscuro lo exige!";
+    // Validaciones del error de subida
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        $error = "Error al subir. Los fuegos del Monte del Destino rechazan tu ofrenda.";
+    } elseif (!is_uploaded_file($file['tmp_name'])) {
+        $error = "Fichero de subida no válido.";
+    } elseif ($file['size'] > $max_size) {
+        $error = "El mapa es demasiado grande (máximo 5 MB).";
     } else {
-        if (move_uploaded_file($tmp, $upload_dir . $filename)) {
-            $success = "Mapa subido correctamente: <a href='uploads/$filename' style='color: var(--lotr-gold);'>Ver Mapa</a>";
+        // Comprobar que el contenido real es una imagen JPEG, no solo la extensión
+        $info = @getimagesize($file['tmp_name']);
+        $is_jpeg = $info !== false && isset($info[2]) && $info[2] === IMAGETYPE_JPEG;
+
+        $finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : false;
+        $mime = $finfo ? finfo_file($finfo, $file['tmp_name']) : null;
+        if ($finfo) {
+            finfo_close($finfo);
+        }
+        $valid_mime = ($mime === null) || ($mime === 'image/jpeg');
+
+        if (!$is_jpeg || !$valid_mime) {
+            $error = "¡Solo se permiten imágenes de mapas (.jpg)! ¡El Señor Oscuro lo exige!";
         } else {
-            $error = "Error al subir. Los fuegos del Monte del Destino rechazan tu ofrenda.";
+            // Nombre generado por el servidor: evita extensiones dobles tipo shell.php.jpg
+            $safe_name = bin2hex(random_bytes(16)) . '.jpg';
+            if (move_uploaded_file($file['tmp_name'], $upload_dir . $safe_name)) {
+                $safe_name_html = htmlspecialchars($safe_name, ENT_QUOTES, 'UTF-8');
+                $success = "Mapa subido correctamente: <a href='uploads/$safe_name_html' style='color: var(--lotr-gold);'>Ver Mapa</a>";
+            } else {
+                $error = "Error al subir. Los fuegos del Monte del Destino rechazan tu ofrenda.";
+            }
         }
     }
 }

@@ -1,6 +1,8 @@
 <?php
-// VULNERABLE: Path Traversal - No sanitization of file parameter
-$file = $_GET['file'] ?? 'historia.txt';
+// SECURE: el parámetro file solo admite nombres simples .txt dentro de texts/
+$raw_file = $_GET['file'] ?? 'historia.txt';
+$file = basename($raw_file);
+$file_ok = pathinfo($file, PATHINFO_EXTENSION) === 'txt';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -28,23 +30,17 @@ $file = $_GET['file'] ?? 'historia.txt';
             </h2>
             <div class="code-display">
                 <?php
-                // SECURE: Sanitization implemented
-                // 1. basename() prevents directory traversal (../)
-                // 2. Extension check ensures only .txt files are read
-                
-                $raw_file = $_GET['file'] ?? 'historia.txt';
-                $file = basename($raw_file); // Remove path components
-                
-                // Enforce .txt extension
-                if (pathinfo($file, PATHINFO_EXTENSION) !== 'txt') {
+                // 1. basename() evita el directory traversal (../)
+                // 2. Solo se permiten ficheros .txt dentro de texts/
+                if (!$file_ok) {
                     echo "Error: Solo se permite leer pergaminos de texto (.txt).";
                 } else {
-                    $path = "texts/" . $file;
+                    $path = __DIR__ . "/texts/" . $file;
 
-                    if (file_exists($path)) {
+                    if (is_file($path)) {
                         echo htmlspecialchars(file_get_contents($path));
                     } else {
-                        echo "El pergamino '$file' no se ha encontrado en los archivos de Mordor.";
+                        echo "El pergamino '" . htmlspecialchars($file, ENT_QUOTES, 'UTF-8') . "' no se ha encontrado en los archivos de Mordor.";
                     }
                 }
                 ?>
